@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IndustrialShield | OT Cyber-Physical Defense Console</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="dark-theme">
+
+  <!-- ============================================================== -->
+  <!-- 1. LOGIN / AUTHENTICATION VIEW (Appears Before Main Dashboard) -->
+  <!-- ============================================================== -->
+  <div id="loginView" class="login-viewport">
+    <div class="login-backdrop"></div>
+    <div class="login-container">
+      
+      <!-- Login Header -->
+      <div class="login-brand-header">
+        <div class="login-brand-icon">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M12 8v4M12 16h.01"/>
+          </svg>
+        </div>
+        <div class="login-brand-text">
+          <h1>INDUSTRIAL<span class="accent-text">SHIELD</span></h1>
+          <p>OT Cyber-Physical Defense Console &bull; Operator Authentication</p>
+        </div>
+      </div>
+
+      <!-- Quick Demo Account Selector (Helpful for judges & operators) -->
+      <div class="demo-accounts-bar">
+        <span class="demo-label">Demo Quick Fill:</span>
+        <button type="button" class="btn-demo-pill" onclick="quickFillAccount('engineer', 'engineer123')">
+          <span class="role-dot role-eng-dot"></span> Marcus Vance (Engineer)
+        </button>
+        <button type="button" class="btn-demo-pill" onclick="quickFillAccount('operator', 'operator123')">
+          <span class="role-dot role-op-dot"></span> Sarah Connor (Operator)
+        </button>
+        <button type="button" class="btn-demo-pill" onclick="quickFillAccount('admin', 'admin123')">
+          <span class="role-dot role-adm-dot"></span> Elena Rostova (Admin)
+        </button>
+      </div>
+
+      <div class="login-card">
+        <!-- Left: Credentials Form -->
+        <div class="login-form-pane">
+          <h3 class="pane-title">1. Operator Credentials</h3>
+          <p class="pane-subtitle">Enter registered User ID and authentication secret:</p>
+
+          <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+            <div class="form-group">
+              <label for="loginUserId">User ID or Smart Badge:</label>
+              <div class="input-with-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <input type="text" id="loginUserId" class="input-text" placeholder="e.g. engineer, operator, admin" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="loginPassword">Password / Secret PIN:</label>
+              <div class="input-with-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <input type="password" id="loginPassword" class="input-text" placeholder="Enter password..." required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Assigned Operational Role:</label>
+              <div class="role-info-pill" id="loginRolePreview">
+                Role will be authenticated via RBAC directory
+              </div>
+            </div>
+
+            <!-- Login Feedback / Error Box -->
+            <div id="loginFeedback" class="feedback-box hidden"></div>
+
+            <button type="submit" id="btnLoginSubmit" class="btn btn-primary btn-block btn-lg">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              Authenticate & Enter Console
+            </button>
+          </form>
+        </div>
+
+        <!-- Right: Live Camera & Demo Face Verification Section -->
+        <div class="login-camera-pane">
+          <div class="camera-pane-header">
+            <h3 class="pane-title">2. Face Verification (Live Demo)</h3>
+            <span id="cameraStatusBadge" class="status-badge status-standby">Camera Standby</span>
+          </div>
+
+          <div class="demo-compliance-notice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <strong>Demo / Simulated Face Verification:</strong> No biometric data is collected, stored, or transmitted. Camera feed remains purely local in browser memory.
+          </div>
+
+          <!-- Camera Preview Frame with Reticle HUD -->
+          <div class="webcam-viewport">
+            <video id="loginWebcam" autoplay playsinline muted></video>
+            
+            <!-- Reticle HUD Overlay -->
+            <div class="camera-overlay" id="cameraOverlay">
+              <div class="reticle-corner top-left"></div>
+              <div class="reticle-corner top-right"></div>
+              <div class="reticle-corner bottom-left"></div>
+              <div class="reticle-corner bottom-right"></div>
+              <div class="scan-grid"></div>
+              <div id="scanLine" class="scan-line hidden"></div>
+              <div id="cameraPlaceholderText" class="camera-placeholder">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <span>Click "Start Camera" for live demonstration</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Camera Action Buttons -->
+          <div class="camera-actions-row">
+            <button type="button" id="btnStartCamera" class="btn btn-outline btn-sm" onclick="startCamera()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              Start Camera
+            </button>
+            <button type="button" id="btnVerifyFace" class="btn btn-accent btn-sm" onclick="verifyFaceDemo()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 11 12 14 22 4"/></svg>
+              Verify Face
+            </button>
+            <button type="button" id="btnStopCamera" class="btn btn-outline btn-sm" onclick="stopCamera()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
+              Stop Camera
+            </button>
+          </div>
+
+          <!-- Fallback / Safe Demo Bypass Button if Camera Denied -->
+          <div class="camera-fallback-row">
+            <button type="button" class="btn-link" onclick="bypassCameraDemo()">
+              Camera unavailable or denied? Click for Safe Demo Fallback
+            </button>
+          </div>
+
+          <!-- Verification Result Banner -->
+          <div id="faceVerifyResult" class="face-result-banner hidden">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Compliance Footer -->
+      <div class="login-footer">
+        <span>&copy; IndustrialShield &bull; Safe Hackathon Demonstration Environment</span>
+        <span>Zero real industrial attacks &bull; Zero biometric storage &bull; IEC 62443 Reference Model</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- 2. MAIN APPLICATION (Multi-Dashboard with Sidebar Navigation) -->
+  <!-- ============================================================== -->
+  <div id="appView" class="app-layout hidden">
+    
+    <!-- PROFESSIONAL SIDEBAR NAVIGATION (10 Major Items) -->
+    <aside class="sidebar-nav">
+      <!-- Sidebar Brand Header -->
+      <div class="sidebar-brand">
+        <div class="sidebar-logo">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M12 8v4M12 16h.01"/>
+          </svg>
+        </div>
+        <div class="sidebar-title">
+          <span class="title-bold">INDUSTRIAL</span><span class="accent-text">SHIELD</span>
+          <span class="sidebar-subtitle">OT DEFENSE CONSOLE</span>
+        </div>
+      </div>
+
+      <!-- Active Operator Profile Card -->
+      <div class="sidebar-user-card">
+        <div class="user-avatar" id="sidebarUserAvatar">MV</div>
+        <div class="user-details">
+          <div class="user-display-name" id="sidebarUserName">Marcus Vance</div>
+          <div class="user-role-line">
+            <span class="role-badge role-engineer" id="sidebarUserRole">ENGINEER</span>
+            <span class="user-status-dot" title="Authenticated Session"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar Menu Items (Each major feature has its own dashboard) -->
+      <nav class="sidebar-menu">
+        <div class="menu-section-label">OPERATIONS &amp; MONITORING</div>
+        <button class="nav-item active" data-page="dash-overview">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Overview Dashboard</span>
+        </button>
+        <button class="nav-item" data-page="dash-assets">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <span>OT Asset Monitoring</span>
+        </button>
+        <button class="nav-item" data-page="dash-threats">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Threat Detection</span>
+          <span class="nav-badge text-danger" id="sidebarThreatCount">3</span>
+        </button>
+
+        <div class="menu-section-label">INTELLIGENCE &amp; ANALYSIS</div>
+        <button class="nav-item" data-page="dash-impact">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Impact Analysis &amp; Graph</span>
+        </button>
+        <button class="nav-item" data-page="dash-ai-explain">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>AI Threat Explanation</span>
+        </button>
+        <button class="nav-item" data-page="dash-correlation">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span>Incident Correlation</span>
+        </button>
+
+        <div class="menu-section-label">SECURITY CONTROLS</div>
+        <button class="nav-item" data-page="dash-rbac">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Access Control / RBAC</span>
+        </button>
+        <button class="nav-item" data-page="dash-crypto">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          <span>Cryptographic Inspection</span>
+        </button>
+
+        <div class="menu-section-label">SYSTEM</div>
+        <button class="nav-item" data-page="dash-settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Settings</span>
+        </button>
+        <button class="nav-item btn-logout-item" onclick="handleLogout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Logout</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <div class="safe-badge-pill">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Safe Hackathon Sandbox</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN DASHBOARD CONTENT AREA -->
+    <div class="main-content-wrapper">
+      
+      <!-- TOP STATUS BAR -->
+      <header class="top-status-bar">
+        <div class="page-title-area">
+          <h2 id="currentPageTitle">Overview Dashboard</h2>
+          <span class="breadcrumb" id="currentPageBreadcrumb">Industrial Operations &bull; Plant Posture</span>
+        </div>
+
+        <div class="top-bar-indicators">
+          <div class="status-indicator-box">
+            <span class="ind-label">Overall Risk:</span>
+            <span id="topRiskPill" class="risk-pill pill-high">HIGH RISK</span>
+          </div>
+          <div class="status-indicator-box">
+            <span class="ind-label">Online Assets:</span>
+            <span id="topOnlineCounter" class="counter-badge">14 / 14</span>
+          </div>
+          <div class="status-indicator-box">
+            <span class="ind-label">Logged As:</span>
+            <span id="topRoleBadge" class="role-badge role-engineer">ENGINEER</span>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="handleLogout()" title="Exit session">
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <!-- VIEW CONTAINER -->
+      <div class="dashboards-container">
+
+        <!-- ========================================== -->
+        <!-- DASHBOARD 1: OVERVIEW DASHBOARD             -->
+        <!-- ========================================== -->
+        <section id="dash-overview" class="dashboard-pane active">
+          
+          <!-- Key Metric Cards Row -->
+          <div class="metrics-cards-row">
+            <div class="metric-card">
+              <div class="metric-icon-wrap icon-cyan">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
+              </div>
+              <div>
+                <span class="metric-val" id="metricTotalAssets">14</span>
+                <span class="metric-name">Total OT Assets</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-wrap icon-green">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <div>
+                <span class="metric-val text-safe" id="metricOnlineAssets">14</span>
+                <span class="metric-name">Online Assets</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-wrap icon-gray">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              </div>
+              <div>
+                <span class="metric-val text-dim" id="metricOfflineAssets">0</span>
+                <span class="metric-name">Offline Assets</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-wrap icon-red">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div>
+                <span class="metric-val text-danger" id="metricActiveThreats">3</span>
+                <span class="metric-name">Active Threats</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-wrap icon-amber">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div>
+                <span class="metric-val text-warning" id="metricCompromisedAssets">1</span>
+                <span class="metric-name">Compromised Assets</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-wrap icon-blue">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div>
+                <span class="metric-val" id="metricTotalEvents">3</span>
+                <span class="metric-name">Security Events</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Middle Split: Circular Risk Gauge + Recent Events Preview -->
+          <div class="overview-main-grid">
+            
+            <!-- Circular Risk Detection Card -->
+            <div class="card risk-gauge-card">
+              <div class="card-header">
+                <div class="card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24"/></svg>
+                  Plant Cyber-Physical Risk Detection
+                </div>
+                <span id="overviewRiskPill" class="risk-pill pill-high">HIGH RISK</span>
+              </div>
+              
+              <div class="risk-gauge-content">
+                <div class="circular-gauge-wrapper">
+                  <svg class="circular-gauge" viewBox="0 0 160 160">
+                    <circle class="gauge-bg" cx="80" cy="80" r="66" />
+                    <circle id="gaugeProgress" class="gauge-progress" cx="80" cy="80" r="66" />
+                  </svg>
+                  <div class="gauge-center-text">
+                    <span id="gaugeValue" class="gauge-number">68</span><span class="gauge-percent">%</span>
+                    <span id="gaugeStatusText" class="gauge-sub">Threat Active</span>
+                  </div>
+                </div>
+
+                <div class="risk-analysis-panel">
+                  <h4 class="analysis-title">Real-Time Risk Analysis</h4>
+                  <p id="riskAnalysisSummary" class="analysis-desc">
+                    Evaluating lateral traversal reachability across Purdue zones...
+                  </p>
+                  <div class="risk-meta-list">
+                    <div class="meta-row"><span>Perimeter Status:</span> <strong class="text-safe">Protected</strong></div>
+                    <div class="meta-row"><span>Supervisory DMZ:</span> <strong class="text-warning">Anomalous Session</strong></div>
+                    <div class="meta-row"><span>Safety Instrumented System (SIS):</span> <strong class="text-info">Autonomous Lock</strong></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Security Events Preview -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  Recent Security Events
+                </div>
+                <button class="btn btn-sm btn-outline" onclick="navigateToPage('dash-threats')">View All Threats &rarr;</button>
+              </div>
+              <div class="recent-events-preview" id="recentEventsPreview">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom: Quick Navigation Cards -->
+          <div class="quick-nav-grid">
+            <div class="quick-nav-card" onclick="navigateToPage('dash-assets')">
+              <div class="qn-icon">🏭</div>
+              <div>
+                <strong>OT Asset Monitoring</strong>
+                <p>Inspect 14 assets across Purdue stages, toggle availability, and test isolation.</p>
+              </div>
+            </div>
+
+            <div class="quick-nav-card" onclick="navigateToPage('dash-impact')">
+              <div class="qn-icon">🔬</div>
+              <div>
+                <strong>Impact Analysis &amp; Graph</strong>
+                <p>Visualize NetworkX attack exposure paths and inspect the Industrial Impact Analysis chart.</p>
+              </div>
+            </div>
+
+            <div class="quick-nav-card" onclick="navigateToPage('dash-ai-explain')">
+              <div class="qn-icon">🤖</div>
+              <div>
+                <strong>AI Threat Explanation</strong>
+                <p>Understand complex industrial events with transparent non-technical reasoning.</p>
+              </div>
+            </div>
+
+            <div class="quick-nav-card" onclick="navigateToPage('dash-correlation')">
+              <div class="qn-icon">🔗</div>
+              <div>
+                <strong>Incident Correlation</strong>
+                <p>Examine multi-stage attack chains linking badge failures with Modbus protocol writes.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- DASHBOARD 2: OT ASSET MONITORING           -->
+        <!-- ========================================== -->
+        <section id="dash-assets" class="dashboard-pane">
+          <div class="panel-header-row">
+            <div>
+              <h3>Purdue Stage Industrial Asset Monitoring</h3>
+              <p class="section-desc">Track operational status, protocol exposure, and availability health across ISA-95 Purdue levels.</p>
+            </div>
+            <div class="filter-controls">
+              <input type="text" id="assetSearchInput" placeholder="Filter by asset name, ID, or IP..." class="input-search" />
+              <select id="stageFilterSelect" class="select-box">
+                <option value="ALL">All Purdue Stages</option>
+                <option value="Level 4: Enterprise Network">Level 4: Enterprise</option>
+                <option value="Level 3.5: Industrial DMZ">Level 3.5: DMZ</option>
+                <option value="Level 3: Operations & SCADA">Level 3: Operations</option>
+                <option value="Level 2: Supervisory Control">Level 2: Supervisory</option>
+                <option value="Level 1: Basic Control & Safety">Level 1: Control & Safety</option>
+                <option value="Level 0: Physical Field Devices">Level 0: Field Devices</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Purdue Stage Summary Pills -->
+          <div class="stage-summary-pills-row" id="stagePillsRow"></div>
+
+          <!-- Assets Cards Grid -->
+          <div class="assets-grid" id="assetsContainer"></div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- DASHBOARD 3: THREAT DETECTION               -->
+        <!-- ========================================== -->
+        <section id="dash-threats" class="dashboard-pane">
+          <div class="panel-header-row">
+            <div>
+              <h3>OT Threat Detection &amp; Telemetry Stream</h3>
+              <p class="section-desc">Real-time detection of industrial protocol anomalies, unauthorized commands, and perimeter probes.</p>
+            </div>
+            <span class="badge-live">LIVE TELEMETRY</span>
+          </div>
+
+          <!-- Threat Simulator Banner -->
+          <div class="card threat-sim-box">
+            <div class="card-header">
+              <div class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m13 2-2 10h9L7 22l2-10H1L13 2z"/></svg>
+                Simulate Industrial Attack Scenarios
+              </div>
+              <small class="text-dim">Safe Simulation: No live malware or real PLC tampering</small>
+            </div>
+            <div class="sim-buttons-grid">
+              <button class="btn btn-scenario" onclick="triggerScenario('modbus_flood')">
+                <span class="sim-icon">⚡</span>
+                <div>
+                  <strong>Rogue Modbus Write</strong>
+                  <small>Inject FC16 write to Turbine PLC-01</small>
+                </div>
+              </button>
+              <button class="btn btn-scenario" onclick="triggerScenario('sis_tamper')">
+                <span class="sim-icon">🛡️</span>
+                <div>
+                  <strong>SIS Safety Tamper</strong>
+                  <small>Simulate emergency trip threshold bypass</small>
+                </div>
+              </button>
+              <button class="btn btn-scenario" onclick="triggerScenario('lateral_pivot')">
+                <span class="sim-icon">🔄</span>
+                <div>
+                  <strong>DMZ Lateral Movement</strong>
+                  <small>Pivot through mirror to SCADA server</small>
+                </div>
+              </button>
+              <button class="btn btn-scenario" onclick="triggerScenario('firmware_mismatch')">
+                <span class="sim-icon">⚠️</span>
+                <div>
+                  <strong>Firmware Hash Mismatch</strong>
+                  <small>Simulate unapproved PLC boot hash</small>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Threats Table / Timeline -->
+          <div class="card" style="margin-top: 20px;">
+            <div class="card-header">
+              <div class="card-title">Detected Threat Stream</div>
+              <button class="btn btn-sm btn-outline" onclick="loadEvents()">Refresh Stream</button>
+            </div>
+            <div id="threatsStreamContainer" class="events-timeline"></div>
+          </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- DASHBOARD 4: IMPACT ANALYSIS & GRAPH        -->
+        <!-- ========================================== -->
+        <section id="dash-impact" class="dashboard-pane">
+          <div class="panel-header-row">
+            <div>
+              <h3>Graph-Based Attack Exposure Path Analysis</h3>
+              <p class="section-desc">Evaluate how threats propagate across Purdue zones using Python NetworkX directed graph algorithms.</p>
+            </div>
+          </div>
+
+          <div class="topology-layout">
+            <!-- Canvas Graph Visualizer -->
+            <div class="graph-card card">
+              <div class="card-header">
+                <div class="card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                  Purdue Topology &amp; Attack Exposure Path (NetworkX)
+                </div>
+                <div class="graph-legend">
+                  <span class="legend-item"><span class="dot dot-safe"></span> Nominal</span>
+                  <span class="legend-item"><span class="dot dot-compromised"></span> Compromised</span>
+                  <span class="legend-item"><span class="dot dot-offline"></span> Offline</span>
+                  <span class="legend-item"><span class="dot dot-path"></span> Exposure Path</span>
+                </div>
+              </div>
+              <div class="canvas-container">
+                <canvas id="topologyCanvas" width="860" height="520"></canvas>
+                <div class="canvas-hint">Click any asset node to set as source. Computed exposure paths glow red.</div>
+              </div>
+            </div>
+
+            <!-- Impact Controls & Metrics -->
+            <div class="impact-side-panel card">
+              <div class="card-header">
+                <div class="card-title">Exposure Path Traversal</div>
+              </div>
+              
+              <div class="impact-controls">
+                <div class="form-group">
+                  <label for="impactSourceSelect">Compromised Source Node:</label>
+                  <select id="impactSourceSelect" class="select-box"></select>
+                </div>
+                <div class="form-group">
+                  <label for="impactTargetSelect">Target Asset (Optional):</label>
+                  <select id="impactTargetSelect" class="select-box">
+                    <option value="">Auto-Detect Critical Targets (PLCs &amp; SIS)</option>
+                  </select>
+                </div>
+                <button id="btnRunImpact" class="btn btn-primary btn-block">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Run NetworkX Impact Analysis
+                </button>
+              </div>
+
+              <div id="impactResultsContainer" class="impact-results">
+                <div class="empty-state">Select a source node and click "Run NetworkX Impact Analysis" to calculate exposure paths and blast radius.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================== -->
+          <!-- IMPACT ANALYSIS GRAPH (Required Section)   -->
+          <!-- ========================================== -->
+          <div class="card impact-graph-card" style="margin-top: 24px;">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                  Industrial Impact Analysis
+                </div>
+                <p class="section-desc">Visualizing computed cyber-physical impact scores across connected industrial assets.</p>
+              </div>
+              <div class="graph-legend">
+                <span class="legend-item"><span class="dot dot-safe"></span> Low (&lt;25)</span>
+                <span class="legend-item"><span class="dot" style="background:#f59e0b;"></span> Medium (25-55)</span>
+                <span class="legend-item"><span class="dot" style="background:#f97316;"></span> High (56-79)</span>
+                <span class="legend-item"><span class="dot dot-compromised"></span> Critical (&ge;80)</span>
+              </div>
+            </div>
+
+            <!-- Canvas Bar Chart -->
+            <div class="impact-barchart-container">
+              <canvas id="impactBarChartCanvas" width="1100" height="340"></canvas>
+              <div id="chartTooltip" class="chart-tooltip hidden"></div>
+            </div>
+            <div class="chart-footer-note">
+              <span><strong>X-Axis:</strong> Industrial Assets across Purdue Levels 0-4</span>
+              <span><strong>Y-Axis:</strong> Cyber-Physical Impact / Risk Score (0-100)</span>
+              <span>Dynamically recalculates when threat scenarios or asset availability states change</span>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- DASHBOARD 5: AI THREAT EXPLANATION         -->
+        <!-- ========================================== -->
+        <section id="dash-ai-explain" class="dashboard-pane">
+          <div class="panel-header-row">
+            <div>
+              <h3>AI &amp; Deterministic Threat Explanation</h3>
+              <p class="section-desc">Translating complex OT security telemetry into transparent, non-technical operational explanations.</p>
+            </div>
+            <div class="explainer-mode-banner">
+              <span class="mode-label">Explainer Engine:</span>
+              <span id="aiActiveEngineBadge" class="mode-badge">Fallback Intelligent Rule-Based Engine (Deterministic)</span>
+            </div>
+          </div>
+
+          <!-- Event Selector Card -->
+          <div class="card" style="margin-bottom: 20px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="aiEventSelect">Select Detected Security Incident to Explain:</label>
+              <select id="aiEventSelect" class="select-box" onchange="handleAiEventSelection()"></select>
+            </div>
+          </div>
+
+          <!-- 6 Explicit Transparent Questions Requested -->
+          <div class="ai-cards-grid">
+            <div class="ai-card">
+              <div class="ai-card-header">
+                <span class="ai-q-num">1</span>
+                <h4>What happened?</h4>
+              </div>
+              <p id="aiAnswerWhatHappened" class="ai-answer-text">Select an incident above to generate plain-language breakdown.</p>
+            </div>
+
+            <div class="ai-card">
+              <div class="ai-card-header">
+                <span class="ai-q-num q-danger">2</span>
+                <h4>Why is it dangerous?</h4>
+              </div>
+              <p id="aiAnswerWhyDangerous" class="ai-answer-text">Analyzing physical safety and operational risk parameters...</p>
+            </div>
+
+            <div class="ai-card">
+              <div class="ai-card-header">
+                <span class="ai-q-num">3</span>
+                <h4>Which asset is affected?</h4>
+              </div>
+              <p id="aiAnswerAffectedAsset" class="ai-answer-text font-mono text-cyan">--</p>
+            </div>
+
+            <div class="ai-card">
+              <div class="ai-card-header">
+                <span class="ai-q-num">4</span>
+                <h4>How could the threat propagate?</h4>
+              </div>
+              <p id="aiAnswerPropagation" class="ai-answer-text">Tracing lateral network traversal vectors...</p>
+            </div>
+
+            <div class="ai-card">
+              <div class="ai-card-header">
+                <span class="ai-q-num q-danger">5</span>
+                <h4>What is the possible operational impact?</h4>
+              </div>
+              <p id="aiAnswerOperationalImpact" class="ai-answer-text">Evaluating turbine pressure, rotational velocity, and safety bounds...</p>
+            </div>
+
+            <div class="ai-card">
+              <div class="ai-card-header">
+                <span class="ai-q-num q-action">6</span>
+                <h4>What should the operator investigate?</h4>
+              </div>
+              <div id="aiAnswerInvestigation" class="recommendation-box">Step-by-step guidance will appear here.</div>
+            </div>
+          </div>
+
+          <!-- Raw Context Accordion -->
+          <div class="card" style="margin-top: 20px;">
+            <div class="card-header">
+              <div class="card-title">Technical Telemetry &amp; Transparent Reasoning Context</div>
+            </div>
+            <pre class="code-box" id="aiTechnicalBox">Select an incident to view parsed telemetry.</pre>
+          </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- DASHBOARD 6: INCIDENT CORRELATION          -->
+        <!-- ========================================== -->
+        <section id="dash-correlation" class="dashboard-pane">
+          <div class="panel-header-row">
+            <div>
+              <h3>Incident / Event Correlation Engine</h3>
+              <p class="section-desc">Connecting physical badge verification anomalies, DMZ ingress, and unauthorized Modbus writes into multi-vector incidents.</p>
+            </div>
+            <span class="badge-pill" id="correlationCountBadge">1 Active Incident</span>
+          </div>
+
+          <div class="correlation-layout">
+            <!-- Active Incidents Column -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Correlated OT Incidents</div>
+              </div>
+              <div id="correlationListContainer" class="incidents-list"></div>
+            </div>
+
+            <!-- Sequence Timeline -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Multi-Stage Attack Sequence</div>
+              </div>
+              <div id="correlationTimelineContainer" class="sequence-timeline">
+                <div class="empty-state">Select or view correlated incidents to see temporal event progression.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- DASHBOARD 7: ACCESS CONTROL / RBAC          -->
+        <!-- ========================================== -->
+        <section id="dash-rbac" class="dashboard-pane">
+          <div class="panel-header-row">
+            <div>
+              <h3>Role-Based Access Control (RBAC) Console</h3>
+              <p class="section-desc">Enforce separation of duties across Operator, Engineer, and Admin roles to protect safety-critical controllers.</p>
+            </div>
+            <span class="badge-pill">Zero-Trust OT</span>
+          </div>
+
+          <div class="rbac-layout">
+            <!-- RBAC Execution Tester -->
+            <div class="card rbac-card">
+              <div class="card-header">
+                <div class="card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  Interactive Command Permission Tester
+                </div>
+              </div>
+
+              <p class="section-desc">
+                If an unauthorized role attempts a restricted command, IndustrialShield automatically blocks execution and logs an <strong>UNAUTHORIZED_ACCESS_ALERT</strong>.
+              </p>
+
+              <div class="rbac-tester-grid">
+                <div class="form-group">
+                  <label>Select Testing Role:</label>
+                  <div class="role-selector-pills">
+                    <label class="pill-radio"><input type="radio" name="rbacRole" value="operator"> <span>Operator</span></label>
+                    <label class="pill-radio"><input type="radio" name="rbacRole" value="engineer" checked> <span>Engineer</span></label>
+                    <label class="pill-radio"><input type="radio" name="rbacRole" value="admin"> <span>Admin</span></label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="rbacActionSelect">Action to Attempt:</label>
+                  <select id="rbacActionSelect" class="select-box">
+                    <option value="view_telemetry">View Plant Telemetry (Read-Only)</option>
+                    <option value="acknowledge_low_alert">Acknowledge Low Severity Alert</option>
+                    <option value="tune_setpoint">Tune Turbine Setpoint Speed</option>
+                    <option value="modify_plc_logic">Modify PLC Ladder Logic (Online Edit)</option>
+                    <option value="bypass_safety_sis">Bypass Safety Instrumented System (SIS-01)</option>
+                    <option value="update_firewall">Update DMZ Perimeter Firewall Rules</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="rbacTargetSelect">Target Industrial Asset:</label>
+                  <select id="rbacTargetSelect" class="select-box">
+                    <option value="PLC-TURBINE-01">PLC-TURBINE-01 (Gas Turbine Controller)</option>
+                    <option value="SIS-01">SIS-01 (Safety Instrumented System)</option>
+                    <option value="DMZ-FIREWALL">DMZ-FIREWALL (Perimeter Gateway)</option>
+                    <option value="SCADA-SERVER-01">SCADA-SERVER-01 (Operations Host)</option>
+                  </select>
+                </div>
+
+                <button id="btnExecuteRBAC" class="btn btn-primary btn-block" onclick="executeRBACCheck()">
+                  Execute Industrial Action
+                </button>
+              </div>
+
+              <div id="rbacFeedbackBox" class="rbac-result-box">
+                <div class="result-placeholder">Select a role and action above, then click Execute to test permission boundary.</div>
+              </div>
+            </div>
+
+            <!-- Permission Matrix Table -->
+            <div class="card matrix-card">
+              <div class="card-header">
+                <div class="card-title">Industrial RBAC Permission Matrix</div>
+              </div>
+              <table class="matrix-table">
+                <thead>
+                  <tr>
+                    <th>Operation / Command</th>
+                    <th>Operator</th>
+                    <th>Engineer</th>
+                    <th>Admin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>View Live Telemetry</td>
+                    <td><span class="allow-check">&check; Allowed</span></td>
+                    <td><span class="allow-check">&check; Allowed</span></td>
+                    <td><span class="allow-check">&check; Allowed</span></td>
+                  </tr>
+                  <tr>
+                    <td>Acknowledge Alerts</td>
+                    <td><span class="allow-check">&check; Low/Med</span></td>
+                    <td><span class="allow-check">&check; All</span></td>
+                    <td><span class="allow-check">&check; All</span></td>
+                  </tr>
+                  <tr>
+                    <td>Tune Process Setpoints</td>
+                    <td><span class="deny-cross">&cross; Blocked</span></td>
+                    <td><span class="allow-check">&check; Allowed</span></td>
+                    <td><span class="allow-check">&check; Allowed</span></td>
+                  </tr>
+                  <tr>
+                    <td>Modify PLC Ladder Logic</td>
+                    <td><span class="deny-cross">&cross; Blocked</span></td>
+                    <td><span class="allow-check">&check; Allowed</span></td>
+                    <td><span class="allow-check">&check; Allowed</span></td>
+                  </tr>
+                  <tr>
+                    <td>Bypass Safety SIS Interlock</td>
+                    <td><span class="deny-cross">&cross; Blocked</span></td>
+                    <td><span class="deny-cross">&cross; Blocked</span></td>
+                    <td><span class="allow-check">&check; Audited</span></td>
+                  </tr>
+                  <tr>
+                    <td>Update DMZ Firewall ACLs</td>
+                    <td><span class="deny-cross">&cross; Blocked</span></td>
+                    <td><span class="deny-cross">&cross; Blocked</span></td>
+                    <td><span class="allow-check">&check; Allowed</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- DASHBOARD 8: CRYPTOGRAPHIC INSPECTION       -->
+        <!-- ========================================== -->
+        <section id="dash-crypto" class="dashboard-pane">
+          <div class="panel-header-row">
+            <div>
+              <h3>Cryptographic Security Inspector</h3>
+              <p class="section-desc">Demonstrating data protection concepts using Salted SHA-256 Hashes and AES-128 Fernet Encryption.</p>
+            </div>
+            <span class="badge-pill">SHA-256 &bull; Fernet AES-128</span>
+          </div>
+
+          <div class="card crypto-card">
+            <div class="crypto-safety-banner">
+              <div class="banner-icon">🔒</div>
+              <div>
+                <strong>Safe Biometric-Free Guarantee:</strong>
+                IndustrialShield strictly does not collect or store real biometric data. Operator credentials utilize cryptographic salt-and-hash verification without privacy compromise.
+              </div>
+            </div>
+
+            <h4>1. Operator Credential Hashes (Salted SHA-256)</h4>
+            <p class="section-desc" style="margin-bottom: 12px;">Pre-computed hashes stored in the authentication directory:</p>
+            <div id="cryptoCredentialsContainer" class="crypto-grid"></div>
+
+            <h4 style="margin-top: 24px;">2. Encrypted PLC Safety Trip Logic (Fernet AES-128-CBC)</h4>
+            <p class="section-desc" style="margin-bottom: 12px;">Critical turbine safety parameters stored under authenticated symmetric encryption:</p>
+            <div class="encrypted-block">
+              <div class="cipher-row">
+                <span class="cipher-label">Algorithm:</span>
+                <span class="cipher-val" id="cipherAlgo">Fernet (AES-128-CBC + HMAC-SHA256)</span>
+              </div>
+              <div class="cipher-row">
+                <span class="cipher-label">Simulated Plaintext Config:</span>
+                <pre class="code-box" id="plaintextConfig">Loading...</pre>
+              </div>
+              <div class="cipher-row">
+                <span class="cipher-label">Encrypted Stored Ciphertext:</span>
+                <pre class="code-box cipher-text" id="ciphertextDisplay">Loading...</pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- DASHBOARD 9: SETTINGS                       -->
+        <!-- ========================================== -->
+        <section id="dash-settings" class="dashboard-pane">
+          <div class="panel-header-row">
+            <div>
+              <h3>System Settings &amp; Telemetry Status</h3>
+              <p class="section-desc">Configure simulation preferences, review system health, and reset operational baselines.</p>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Backend Framework Health</div>
+              </div>
+              <div class="settings-meta-list">
+                <div class="setting-row"><span>Framework:</span> <strong>FastAPI + Uvicorn</strong></div>
+                <div class="setting-row"><span>Topology Graph:</span> <strong>NetworkX Directed Graph (DiGraph)</strong></div>
+                <div class="setting-row"><span>Graph Nodes:</span> <strong id="settingsGraphNodes">14 Nodes</strong></div>
+                <div class="setting-row"><span>Graph Communication Edges:</span> <strong id="settingsGraphEdges">17 Links</strong></div>
+                <div class="setting-row"><span>Simulation Mode:</span> <strong class="text-safe">Safe Hackathon Environment</strong></div>
+                <div class="setting-row"><span>Camera Status:</span> <strong class="text-info">Local In-Browser Memory Only</strong></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Simulation Baseline Controls</div>
+              </div>
+              <p class="section-desc" style="margin-bottom: 16px;">
+                Reset all 14 industrial assets, exposure paths, security events, and correlation state to nominal operational baseline:
+              </p>
+              <button class="btn btn-danger-outline" onclick="resetSimulation()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Reset Entire Simulation to Baseline
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
